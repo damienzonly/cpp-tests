@@ -51,10 +51,8 @@ void Application::init() {
     pa_context_set_state_callback(mContext, &Application::state_callback, this);
     pa_context_connect(mContext, nullptr, PA_CONTEXT_NOFLAGS, nullptr);
     pa_threaded_mainloop_start(mMainLoop);
-    int i = 1;
-    while (i) {
+    while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        std::cout << "cycle number " << i++ << std::endl;
     }
 }
 
