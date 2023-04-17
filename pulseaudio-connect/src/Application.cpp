@@ -4,26 +4,6 @@
 #include <thread>
 #include <stdio.h>
 
-void foo(pa_context* c, const pa_sink_info* info, int eol, void* userdata) {
-    if (info != NULL) {
-        std::cout << "name is " << info->name << std::endl;
-    } else if (eol) {
-        std::cout << "end of input list" << std::endl;
-    } else {
-        std::cerr << "error fetching sink inputs list" << std::endl;
-    }
-}
-
-void bar(pa_context* c, const pa_sink_input_info* info, int eol, void* userdata) {
-    if (info != NULL) {
-        std::cout << "name is " << info->name << std::endl;
-    } else if (eol) {
-        std::cout << "end of input list" << std::endl;
-    } else {
-        std::cerr << "error fetching sink inputs list" << std::endl;
-    }
-}
-
 void Application::state_callback(pa_context *c, void *userdata) {
     auto application = Application::convert_to_application(userdata);
     auto state = pa_context_get_state(c);
@@ -64,7 +44,7 @@ void Application::fill_sink_inputs() {
     pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
         auto application = Application::convert_to_application(userdata);
         if (i != NULL) {
-            std::cout << "appending " << i->name << " to list" << std::endl;
+            std::cout << "appending \"" << i->name << "\" to list" << std::endl;
             application->sink_inputs->push_back(i);
         } else if (eol) return;
     }, this);
@@ -73,4 +53,5 @@ void Application::fill_sink_inputs() {
 
 void Application::start() {
     this->fill_sink_inputs();
+    // how do i guarantee that the asyncronous operation is completed here?
 }
