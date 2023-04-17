@@ -1,13 +1,13 @@
 set -e
-# build libsound
-cd libsoundio
-rm -rf build
-mkdir build
-cd build
-cmake ..
-make
-sudo make install
-cd ../../
+# # build libsound
+# cd libsoundio
+# # rm -rf build
+# mkdir -p build
+# cd build
+# cmake ..
+# make
+# sudo make install
+# cd ../../
 
 # build main code
 rm -rf build main
