@@ -62,12 +62,15 @@ Application* Application::convert_to_application(void *userdata) {
 
 void Application::fill_sink_inputs() {
     pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
-        // this->sink_inputs.
+        auto application = Application::convert_to_application(userdata);
+        if (i != NULL) {
+            std::cout << "appending " << i->name << " to list" << std::endl;
+            application->sink_inputs->push_back(i);
+        } else if (eol) return;
     }, this);
-    // pa_operation* op = pa_context_get_sink_info_list(application->mContext, foo, nullptr);
     pa_operation_unref(op);
 }
 
 void Application::start() {
-    
+    this->fill_sink_inputs();
 }
