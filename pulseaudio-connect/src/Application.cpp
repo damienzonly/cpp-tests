@@ -36,10 +36,6 @@ void Application::init() {
     }
 }
 
-Application* Application::convert_to_application(void *userdata) {
-    return static_cast<Application*>(userdata);
-}
-
 void Application::fill_sink_inputs() {
     pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
         auto application = Application::convert_to_application(userdata);

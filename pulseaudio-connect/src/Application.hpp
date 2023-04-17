@@ -25,5 +25,7 @@ public:
     void init();
     void start();
     static void state_callback(pa_context *c, void *userdata);
-    static Application* convert_to_application(void* userdata);
+    static Application* convert_to_application(void* userdata) {
+        return static_cast<Application*>(userdata);
+    }
 };
