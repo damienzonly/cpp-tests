@@ -4,6 +4,10 @@
 #include <thread>
 #include <stdio.h>
 
+void sleep() {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
 void Application::state_callback(pa_context *c, void *userdata) {
     auto application = Application::convert_to_application(userdata);
     auto state = pa_context_get_state(c);
@@ -32,7 +36,7 @@ void Application::init() {
     pa_context_connect(mContext, nullptr, PA_CONTEXT_NOFLAGS, nullptr);
     pa_threaded_mainloop_start(mMainLoop);
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        sleep();
     }
 }
 
