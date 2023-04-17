@@ -41,13 +41,14 @@ void Application::init() {
 }
 
 void Application::fill_sink_inputs() {
-    pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
+    auto list_callback = [](pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
         auto application = Application::convert_to_application(userdata);
         if (i != nullptr) {
             std::cout << "appending \"" << i->name << "\" to list" << std::endl;
             application->sink_inputs->push_back(i);
         } else if (eol) return;
-    }, this);
+    };
+    pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, list_callback, this);
     pa_operation_unref(op);
 }
 
