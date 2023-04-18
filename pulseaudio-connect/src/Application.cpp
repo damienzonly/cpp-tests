@@ -61,8 +61,8 @@ void Application::init() {
 
 typedef void (*list_callback_t)(pa_context*, const pa_sink_input_info*, int, void*);
 
-void foo(pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
-    // printThreadId("foo callback");
+void list_callback(pa_context* c, const pa_sink_input_info* i, int eol, void* userdata) {
+    // printThreadId("list_callback callback");
     auto asyncData = static_cast<AsyncData*>(userdata);
     if (i != nullptr) {
         std::cout << "appending \"" << i->name << "\" to list" << std::endl;
@@ -82,9 +82,9 @@ void Application::addSinkInput(const pa_sink_input_info* i) {
 void Application::fill_sink_inputs() {
     d.application = this;
     d.isFinished = false;
-    pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, foo, &d);
+    pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, list_callback, &d);
     std::unique_lock<std::mutex> lock(d.mtx);
-    // d.cv.wait(lock, [] { return d.isFinished; });
+    d.cv.wait(lock, [] { return d.isFinished; });
     pa_operation_unref(op);
 }
 
