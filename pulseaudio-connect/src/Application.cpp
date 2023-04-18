@@ -84,7 +84,7 @@ void Application::fill_sink_inputs() {
     d.isFinished = false;
     pa_operation* op = pa_context_get_sink_input_info_list(this->mContext, foo, &d);
     std::unique_lock<std::mutex> lock(d.mtx);
-    d.cv.wait(lock, [] { return d.isFinished; });
+    // d.cv.wait(lock, [] { return d.isFinished; });
     pa_operation_unref(op);
 }
 
