@@ -28,5 +28,6 @@ public:
     static Application* convert_to_application(void* userdata) {
         return static_cast<Application*>(userdata);
     }
+    void addSinkInput(const pa_sink_input_info* i);
     void createStreams();
 };
