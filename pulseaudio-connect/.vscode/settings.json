@@ -36,6 +36,7 @@
   "files.associations": {
     "condition_variable": "cpp",
     "iostream": "cpp",
-    "memory": "cpp"
+    "memory": "cpp",
+    "ostream": "cpp"
   }
 }
