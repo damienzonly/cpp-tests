@@ -171,6 +171,7 @@ void streamStateCallback(pa_stream *stream, void *userdata) {
 }
 
 void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
+    pa_stream* writeStream = (pa_stream*) userdata;
     const void* data;
     pa_stream_peek(stream, &data, &length);
     float* samples = (float*) data;
@@ -178,8 +179,9 @@ void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
     for (auto i = 0; i < size; ++i) {
         samples[i] = randomFloat(-0.5f, 0.5f);
     }
-    pa_stream_write((pa_stream*) userdata, data, length, nullptr, 0, PA_SEEK_RELATIVE);
+    pa_stream_write(writeStream, data, length, nullptr, 0, PA_SEEK_RELATIVE);
     pa_stream_drop(stream);
+    pa_stream_drop(writeStream);
 }
 
 void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
@@ -205,6 +207,6 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     }
     
     pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
-    pa_stream_set_read_callback(readStream, streamReadCallback, userdata);
+    pa_stream_set_read_callback(readStream, streamReadCallback, writeStream);
     pa_stream_connect_record(readStream, NULL, &inputStreamData->buffer_attr, PA_STREAM_NOFLAGS);
 }
