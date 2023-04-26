@@ -3,6 +3,14 @@
 #include <chrono>
 #include <thread>
 #include <stdio.h>
+#include <math.h>
+
+bool hasEnding(std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    }
+    return false;
+}
 
 void sleep() {
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -116,6 +124,11 @@ void Application::init() {
 }
 
 void Application::addSinkInput(const pa_sink_input_info* i, void* userdata) {
+    // ignore my own sinks
+    if (hasEnding(i->name, " read") || hasEnding(i->name, " write")) {
+        std::cout << "skipping my own sink " << i->name << std::endl;
+        return;
+    }
     if (this->sinkInputs->count(i->index)) {
         std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
     } else {
@@ -158,7 +171,7 @@ float randomFloat(float a, float b) {
 void streamStateCallback(pa_stream *stream, void *userdata) {
     switch (pa_stream_get_state(stream)) {
         case PA_STREAM_READY: {
-            std::cout << "read stream is ready" << std::endl;
+            // std::cout << "read stream is ready" << std::endl;
             break;
         }
         case PA_STREAM_FAILED: {
@@ -168,39 +181,29 @@ void streamStateCallback(pa_stream *stream, void *userdata) {
     }
 }
 
-// int foo(){
-//     auto mPhasePerSample = MathConstants<double>::twoPi / (mSampleRate / mFrequency);
-//     const float sample = mAmplitude * (float)std::sin(mCurrentPhase);
-    
-// }
-
-bool hasEnding (std::string const &fullString, std::string const &ending) {
-    if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
-    }
-    return false;
-}
-
-void streamReadCallback(pa_stream *stream, size_t bufferSize, void *userdata) {
+void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
     pa_stream* writeStream = (pa_stream*) userdata;
+    // spec shows that buffer size is incremented
+    auto specs = pa_stream_get_sample_spec(stream);
     const void* data;
     pa_stream_peek(stream, &data, &length);
-    float* samples = (float*) data;
-    auto size = length/sizeof(float);
-    for (auto i = 0; i < size; ++i) {
-        samples[i] = randomFloat(-0.5f, 0.5f);
+    if (!data && length) {
+        pa_stream_drop(stream);
+        return;
     }
-    pa_stream_write(writeStream, samples, bufferSize, nullptr, 0, PA_SEEK_RELATIVE);
+    auto samples = (float*) data;
+    float phase = 0;
+    for (auto i = 0; i < length; i+=2) {
+        samples[i] = std::sin(2*3.141592653589793238L*600*phase);
+        phase+=0.000000285;
+    }
+    pa_stream_write(writeStream, data, length, nullptr, 0, PA_SEEK_RELATIVE);
     pa_stream_drop(stream);
     pa_stream_drop(writeStream);
 }
 
 void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
     std::string s(sinkInput->name);
-    if (hasEnding(s, " read") || hasEnding(s, " write")) {
-        std::cout << "skipping my own sink " << s << std::endl;
-        return;
-    }
     std::string readStreamName = s + " read";
     std::string writeStreamName = s + " write";
     
@@ -211,8 +214,12 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     ioStreamData->output = outputStreamData;
     (*this->streamsData)[sinkInput->index] = ioStreamData;
 
-    pa_stream* readStream = pa_stream_new(this->mContext, readStreamName.c_str(), &sinkInput->sample_spec, nullptr);
-    pa_stream* writeStream = pa_stream_new(this->mContext, writeStreamName.c_str(), &sinkInput->sample_spec, nullptr);
+    pa_sample_spec sample;
+    sample.channels = 1;
+    sample.format = PA_SAMPLE_FLOAT32LE;
+    sample.rate = 44100;
+    pa_stream* readStream = pa_stream_new(this->mContext, readStreamName.c_str(), &sample, nullptr);
+    pa_stream* writeStream = pa_stream_new(this->mContext, writeStreamName.c_str(), &sample, nullptr);
 
     if (!readStream) {
         quit("error creating read stream for " + readStreamName);
@@ -220,9 +227,15 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     if (!writeStream) {
         quit("error creating write stream for " + writeStreamName);
     }
-    
+
+    pa_buffer_attr buffer_attr;
+    buffer_attr.maxlength = (uint32_t)-1;
+    buffer_attr.tlength = (uint32_t)-1;
+    buffer_attr.prebuf = (uint32_t)-1;
+    buffer_attr.minreq = (uint32_t)-1;
+    buffer_attr.fragsize = 1024;
     pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
     pa_stream_set_read_callback(readStream, streamReadCallback, writeStream);
-    pa_stream_connect_record(readStream, NULL, &inputStreamData->buffer_attr, PA_STREAM_NOFLAGS);
+    pa_stream_connect_record(readStream, NULL, &buffer_attr, PA_STREAM_NOFLAGS);
     pa_stream_connect_playback(writeStream, nullptr, &outputStreamData->buffer_attr, PA_STREAM_NOFLAGS, nullptr, nullptr);
 }
