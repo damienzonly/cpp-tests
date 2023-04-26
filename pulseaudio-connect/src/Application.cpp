@@ -133,8 +133,6 @@ void Application::removeSinkInput(const uint32_t index) {
 }
 
 void Application::addClientInfo(const pa_client_info* i) {
-    // std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
-    // auto already = this->sinkInputs[i->index];
     if (this->clients->count(i->index)) {
         std::cout << "existing client:" << i->name << std::endl;
     } else {
@@ -170,7 +168,20 @@ void streamStateCallback(pa_stream *stream, void *userdata) {
     }
 }
 
-void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
+// int foo(){
+//     auto mPhasePerSample = MathConstants<double>::twoPi / (mSampleRate / mFrequency);
+//     const float sample = mAmplitude * (float)std::sin(mCurrentPhase);
+    
+// }
+
+bool hasEnding (std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    }
+    return false;
+}
+
+void streamReadCallback(pa_stream *stream, size_t bufferSize, void *userdata) {
     pa_stream* writeStream = (pa_stream*) userdata;
     const void* data;
     pa_stream_peek(stream, &data, &length);
@@ -179,13 +190,17 @@ void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
     for (auto i = 0; i < size; ++i) {
         samples[i] = randomFloat(-0.5f, 0.5f);
     }
-    pa_stream_write(writeStream, data, length, nullptr, 0, PA_SEEK_RELATIVE);
+    pa_stream_write(writeStream, samples, bufferSize, nullptr, 0, PA_SEEK_RELATIVE);
     pa_stream_drop(stream);
     pa_stream_drop(writeStream);
 }
 
 void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
     std::string s(sinkInput->name);
+    if (hasEnding(s, " read") || hasEnding(s, " write")) {
+        std::cout << "skipping my own sink " << s << std::endl;
+        return;
+    }
     std::string readStreamName = s + " read";
     std::string writeStreamName = s + " write";
     
@@ -209,4 +224,5 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
     pa_stream_set_read_callback(readStream, streamReadCallback, writeStream);
     pa_stream_connect_record(readStream, NULL, &inputStreamData->buffer_attr, PA_STREAM_NOFLAGS);
+    pa_stream_connect_playback(writeStream, nullptr, &outputStreamData->buffer_attr, PA_STREAM_NOFLAGS, nullptr, nullptr);
 }
