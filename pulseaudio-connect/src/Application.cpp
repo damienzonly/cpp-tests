@@ -16,7 +16,7 @@ void quit(const std::string& message) {
 void Application::sinkListCallback(pa_context *c, const pa_sink_input_info* info, int eol, void *userdata) {
     if (!info && eol) return;
     auto application = Application::convertToApplication(userdata);
-    application->addSinkInput(info);
+    application->addSinkInput(info, userdata);
 }
 
 void Application::clientListCallback(pa_context *c, const pa_client_info* info, int eol, void *userdata) {
@@ -106,7 +106,7 @@ void Application::contextReadyCallback(pa_context *c, void *userdata) {
 
 void Application::init() {
     this->mMainLoop = pa_threaded_mainloop_new();
-    this->mContext = pa_context_new(pa_threaded_mainloop_get_api(this->mMainLoop), "myname");
+    this->mContext = pa_context_new(pa_threaded_mainloop_get_api(this->mMainLoop), "Smix");
     pa_context_set_state_callback(mContext, &Application::contextReadyCallback, this);
     pa_context_connect(mContext, nullptr, PA_CONTEXT_NOFLAGS, nullptr);
     pa_threaded_mainloop_start(mMainLoop);
@@ -115,12 +115,13 @@ void Application::init() {
     }
 }
 
-void Application::addSinkInput(const pa_sink_input_info* i) {
+void Application::addSinkInput(const pa_sink_input_info* i, void* userdata) {
     if (this->sinkInputs->count(i->index)) {
         std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
     } else {
         std::cout << "adding stream:" << i->name << " id " << i->index << std::endl;
         (*this->sinkInputs)[i->index] = i;
+        this->createIOStreams(i, userdata);
     }
 }
 
@@ -147,4 +148,63 @@ void Application::removeClientInfo(const uint32_t index) {
         std::cout << "removing client: " << index << std::endl;
         this->clients->erase(index);
     }
+}
+
+float randomFloat(float a, float b) {
+    float random = ((float) rand()) / (float) RAND_MAX;
+    float diff = b - a;
+    float r = random * diff;
+    return a + r;
+}
+
+void streamStateCallback(pa_stream *stream, void *userdata) {
+    switch (pa_stream_get_state(stream)) {
+        case PA_STREAM_READY: {
+            std::cout << "read stream is ready" << std::endl;
+            break;
+        }
+        case PA_STREAM_FAILED: {
+            quit("failed state of read stream");
+            break;
+        }
+    }
+}
+
+void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
+    const void* data;
+    pa_stream_peek(stream, &data, &length);
+    float* samples = (float*) data;
+    auto size = length/sizeof(float);
+    for (auto i = 0; i < size; ++i) {
+        samples[i] = randomFloat(-0.5f, 0.5f);
+    }
+    pa_stream_write((pa_stream*) userdata, data, length, nullptr, 0, PA_SEEK_RELATIVE);
+    pa_stream_drop(stream);
+}
+
+void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
+    std::string s(sinkInput->name);
+    std::string readStreamName = s + " read";
+    std::string writeStreamName = s + " write";
+    
+    StreamData* inputStreamData = new StreamData;
+    StreamData* outputStreamData = new StreamData;
+    IOStreamData* ioStreamData = new IOStreamData;
+    ioStreamData->input = inputStreamData;
+    ioStreamData->output = outputStreamData;
+    (*this->streamsData)[sinkInput->index] = ioStreamData;
+
+    pa_stream* readStream = pa_stream_new(this->mContext, readStreamName.c_str(), &sinkInput->sample_spec, nullptr);
+    pa_stream* writeStream = pa_stream_new(this->mContext, writeStreamName.c_str(), &sinkInput->sample_spec, nullptr);
+
+    if (!readStream) {
+        quit("error creating read stream for " + readStreamName);
+    }
+    if (!writeStream) {
+        quit("error creating write stream for " + writeStreamName);
+    }
+    
+    pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
+    pa_stream_set_read_callback(readStream, streamReadCallback, userdata);
+    pa_stream_connect_record(readStream, NULL, &inputStreamData->buffer_attr, PA_STREAM_NOFLAGS);
 }
