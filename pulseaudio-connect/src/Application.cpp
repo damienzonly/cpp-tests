@@ -22,24 +22,43 @@ void Application::sinkListCallback(pa_context *c, const pa_sink_input_info* info
 void Application::clientListCallback(pa_context *c, const pa_client_info* info, int eol, void *userdata) {
     if (!info && eol) return;
     if (info != nullptr) {
-        std::cout << "client " << info->name << " index " << info->index << std::endl;
+        std::cout << "client: " << info->name << " index " << info->index << std::endl;
     }
 }
 
 void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t id, void *userdata) {
+    auto isRemoveEvent = [t]() {
+        return ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE);
+    };
     auto application = Application::convertToApplication(userdata);
+    pa_operation* op;
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {
         case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
-            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+            if (isRemoveEvent()) {
                 // remove sink
                 std::cout << "sink id " << id << " is being removed" << std::endl;
             } else {
                 // add sink
                 std::cout << "sink id " << id << " is being added" << std::endl;
-                pa_operation* op = pa_context_get_sink_input_info(application->mContext, id, Application::sinkListCallback, userdata);
+                if (!(op = pa_context_get_sink_input_info(application->mContext, id, Application::sinkListCallback, userdata))) {
+                    quit("error while fetching sink input info");
+                }
+                pa_operation_unref(op);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_CLIENT:
+            if (isRemoveEvent()) {
+                std::cout << "client id " << id << " is being removed" << std::endl;
+            } else {
+                std::cout << "client id " << id << " is being added" << std::endl;
+                if (!(op = pa_context_get_client_info(application->mContext, id, Application::clientListCallback, userdata))) {
+                    quit("error fetching client info");
+                }
+                pa_operation_unref(op);
             }
             break;
     }
+
 }
 
 
@@ -67,22 +86,21 @@ void Application::contextReadyCallback(pa_context *c, void *userdata) {
             pa_operation_unref(op);
             
             if (!(op = pa_context_get_client_info_list(application->mContext, &Application::clientListCallback, userdata))) {
-                quit("pa_context_get_client_info_list error");
+                quit("pa_context_get_client_info_list init error");
             }
             pa_operation_unref(op);
-
             if (!(op = pa_context_get_sink_input_info_list(application->mContext, &Application::sinkListCallback, userdata))) {
-                quit("pa_context_get_sink_input_info_list error");
+                quit("pa_context_get_sink_input_info_list init error");
             }
             pa_operation_unref(op);
-
+            
             break;
         }
         case PA_CONTEXT_FAILED:
-            std::cout << "failed to connect to audio server" << std::endl;
+            std::cerr << "failed to connect to audio server" << std::endl;
             break;
         case PA_CONTEXT_TERMINATED:
-            std::cout << "connection to audio server terminated" << std::endl;
+            std::cerr << "connection to audio server terminated" << std::endl;
             break;
     };
 }
@@ -101,6 +119,6 @@ void Application::init() {
 }
 
 void Application::addSinkInput(const pa_sink_input_info* i) {
-    std::cout << "index of " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
+    std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
     // this->sinkInputs->push_back(i);
 }
