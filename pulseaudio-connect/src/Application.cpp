@@ -48,7 +48,6 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
             if (isRemoveEvent()) {
                 application->removeClientInfo(index);
             } else {
-                std::cout << "client id " << index << " is being added" << std::endl;
                 if (!(op = pa_context_get_client_info(application->mContext, index, Application::clientListCallback, userdata))) {
                     quit("error fetching client info");
                 }
@@ -117,8 +116,6 @@ void Application::init() {
 }
 
 void Application::addSinkInput(const pa_sink_input_info* i) {
-    // std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
-    // auto already = this->sinkInputs[i->index];
     if (this->sinkInputs->count(i->index)) {
         std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
     } else {
@@ -138,9 +135,9 @@ void Application::addClientInfo(const pa_client_info* i) {
     // std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
     // auto already = this->sinkInputs[i->index];
     if (this->clients->count(i->index)) {
-        std::cout << "existing client:" << i->name << " id " << i->index << std::endl;
+        std::cout << "existing client:" << i->name << std::endl;
     } else {
-        std::cout << "adding client:" << i->name << " id " << i->index << std::endl;
+        std::cout << "adding client:" << i->name << std::endl;
         (*this->clients)[i->index] = i;
     }
 }
