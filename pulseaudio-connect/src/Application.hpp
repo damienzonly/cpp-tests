@@ -1,8 +1,6 @@
 #include <pulse/pulseaudio.h>
 #include <memory>
-#include <vector>
-
-typedef std::vector<const pa_sink_input_info*> sink_inputs_vector;
+#include <map>
 
 class Application
 {
@@ -10,17 +8,18 @@ private:
 public:
     pa_threaded_mainloop* mMainLoop;
     pa_context* mContext;
-    std::unique_ptr<sink_inputs_vector> sinkInputs;
+    std::unique_ptr<std::map<int, const pa_sink_input_info*>> sinkInputs;
+    std::unique_ptr<std::map<int, const pa_client_info*>> clients;
 
     Application() {
-        this->sinkInputs = std::make_unique<sink_inputs_vector>();
+        this->sinkInputs = std::make_unique<std::map<int, const pa_sink_input_info*>>();
+        this->clients = std::make_unique<std::map<int, const pa_client_info*>>();
     }
     ~Application() {
         // Free resources
         pa_context_disconnect(this->mContext);
         pa_context_unref(this->mContext);
         pa_threaded_mainloop_free(this->mMainLoop);
-        this->sinkInputs.reset();
     }
 
     void init();
@@ -31,5 +30,9 @@ public:
     static Application* convertToApplication(void* userdata) {
         return static_cast<Application*>(userdata);
     }
+
     void addSinkInput(const pa_sink_input_info* i);
+    void removeSinkInput(const uint32_t index);
+    void addClientInfo(const pa_client_info* i);
+    void removeClientInfo(const uint32_t index);
 };

@@ -21,12 +21,11 @@ void Application::sinkListCallback(pa_context *c, const pa_sink_input_info* info
 
 void Application::clientListCallback(pa_context *c, const pa_client_info* info, int eol, void *userdata) {
     if (!info && eol) return;
-    if (info != nullptr) {
-        std::cout << "client: " << info->name << " index " << info->index << std::endl;
-    }
+    auto application = Application::convertToApplication(userdata);
+    application->addClientInfo(info);
 }
 
-void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t id, void *userdata) {
+void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t index, void *userdata) {
     auto isRemoveEvent = [t]() {
         return ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE);
     };
@@ -36,11 +35,10 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
         case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
             if (isRemoveEvent()) {
                 // remove sink
-                std::cout << "sink id " << id << " is being removed" << std::endl;
+                application->removeSinkInput(index);
             } else {
                 // add sink
-                std::cout << "sink id " << id << " is being added" << std::endl;
-                if (!(op = pa_context_get_sink_input_info(application->mContext, id, Application::sinkListCallback, userdata))) {
+                if (!(op = pa_context_get_sink_input_info(application->mContext, index, Application::sinkListCallback, userdata))) {
                     quit("error while fetching sink input info");
                 }
                 pa_operation_unref(op);
@@ -48,10 +46,10 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
             break;
         case PA_SUBSCRIPTION_EVENT_CLIENT:
             if (isRemoveEvent()) {
-                std::cout << "client id " << id << " is being removed" << std::endl;
+                application->removeClientInfo(index);
             } else {
-                std::cout << "client id " << id << " is being added" << std::endl;
-                if (!(op = pa_context_get_client_info(application->mContext, id, Application::clientListCallback, userdata))) {
+                std::cout << "client id " << index << " is being added" << std::endl;
+                if (!(op = pa_context_get_client_info(application->mContext, index, Application::clientListCallback, userdata))) {
                     quit("error fetching client info");
                 }
                 pa_operation_unref(op);
@@ -119,6 +117,37 @@ void Application::init() {
 }
 
 void Application::addSinkInput(const pa_sink_input_info* i) {
-    std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
-    // this->sinkInputs->push_back(i);
+    // std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
+    // auto already = this->sinkInputs[i->index];
+    if (this->sinkInputs->count(i->index)) {
+        std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
+    } else {
+        std::cout << "adding stream:" << i->name << " id " << i->index << std::endl;
+        (*this->sinkInputs)[i->index] = i;
+    }
+}
+
+void Application::removeSinkInput(const uint32_t index) {
+    if (this->sinkInputs->count(index)) {
+        std::cout << "removing stream: " << index << std::endl;
+        this->sinkInputs->erase(index);
+    }
+}
+
+void Application::addClientInfo(const pa_client_info* i) {
+    // std::cout << "stream: " << i->name << " is " << i->index << " and client is " << i->client << std::endl;
+    // auto already = this->sinkInputs[i->index];
+    if (this->clients->count(i->index)) {
+        std::cout << "existing client:" << i->name << " id " << i->index << std::endl;
+    } else {
+        std::cout << "adding client:" << i->name << " id " << i->index << std::endl;
+        (*this->clients)[i->index] = i;
+    }
+}
+
+void Application::removeClientInfo(const uint32_t index) {
+    if (this->clients->count(index)) {
+        std::cout << "removing client: " << index << std::endl;
+        this->clients->erase(index);
+    }
 }
