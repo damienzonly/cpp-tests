@@ -44,13 +44,13 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
             if (isRemoveEvent()) {
                 // remove sink
                 application->removeSinkInput(index);
-            } else {
-                // add sink
-                if (!(op = pa_context_get_sink_input_info(application->mContext, index, Application::sinkListCallback, userdata))) {
-                    quit("error while fetching sink input info");
-                }
-                pa_operation_unref(op);
+                return;
             }
+            // add sink
+            if (!(op = pa_context_get_sink_input_info(application->mContext, index, Application::sinkListCallback, userdata))) {
+                quit("error while fetching sink input info");
+            }
+            pa_operation_unref(op);
             break;
         case PA_SUBSCRIPTION_EVENT_CLIENT:
             if (isRemoveEvent()) {
@@ -192,14 +192,17 @@ void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
         return;
     }
     auto samples = (float*) data;
-    float phase = 0;
-    for (auto i = 0; i < length; i+=2) {
-        samples[i] = std::sin(2*3.141592653589793238L*600*phase);
-        phase+=0.000000285;
+    float phase = 0.0;
+    float frequency = 44.0;
+    float delta = frequency / (float)length;
+    float amplitude = 1.0;
+    for (auto i = 0; i < length; i++) {
+        samples[i] = amplitude * (float)std::sin(2 * 3.141592653589793238L * phase);
+        phase+=delta;
     }
-    pa_stream_write(writeStream, data, length, nullptr, 0, PA_SEEK_RELATIVE);
-    pa_stream_drop(stream);
+    pa_stream_write(writeStream, data, length * sizeof(float), nullptr, 0, PA_SEEK_RELATIVE);
     pa_stream_drop(writeStream);
+//    pa_stream_drop(stream);
 }
 
 void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
@@ -233,7 +236,7 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     buffer_attr.tlength = (uint32_t)-1;
     buffer_attr.prebuf = (uint32_t)-1;
     buffer_attr.minreq = (uint32_t)-1;
-    buffer_attr.fragsize = 1024;
+    buffer_attr.fragsize = 2048;
     pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
     pa_stream_set_read_callback(readStream, streamReadCallback, writeStream);
     pa_stream_connect_record(readStream, NULL, &buffer_attr, PA_STREAM_NOFLAGS);

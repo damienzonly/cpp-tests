@@ -15,7 +15,6 @@ typedef struct IOStreamData {
 
 class Application
 {
-private:
 public:
     pa_threaded_mainloop* mMainLoop;
     pa_context* mContext;
@@ -36,7 +35,7 @@ public:
     }
 
     void init();
-    
+
     // callback methods
     static void eventCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata);
     static void sinkListCallback(pa_context *c, const pa_sink_input_info *i, int eol, void *userdata);
@@ -52,4 +51,5 @@ public:
     void addClientInfo(const pa_client_info* i);
     void removeClientInfo(const uint32_t index);
     void createIOStreams(const pa_sink_input_info* info, void* userdata);
+private:
 };
