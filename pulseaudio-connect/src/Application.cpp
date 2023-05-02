@@ -43,7 +43,7 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
         case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
             if (isRemoveEvent()) {
                 // remove sink
-                application->removeSinkInput(index);
+                application->removeSourceOutput(index);
                 return;
             }
             // add sink
@@ -130,19 +130,19 @@ void Application::addSourceOutput(const pa_source_output_info* i, void* userdata
         std::cout << "skipping my own sink " << i->name << std::endl;
         return;
     }
-    if (this->sinkInputs->count(i->index)) {
+    if (this->sourceOutputs->count(i->index)) {
         std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
     } else {
         std::cout << "adding stream:" << i->name << " id " << i->index << std::endl;
-//        (*this->sinkInputs)[i->index] = i;
+        (*this->sourceOutputs)[i->index] = i;
         this->createIOStreams(i, userdata);
     }
 }
 
-void Application::removeSinkInput(const uint32_t index) {
-    if (this->sinkInputs->count(index)) {
+void Application::removeSourceOutput(const uint32_t index) {
+    if (this->sourceOutputs->count(index)) {
         std::cout << "removing stream: " << index << std::endl;
-        this->sinkInputs->erase(index);
+        this->sourceOutputs->erase(index);
     }
 }
 
