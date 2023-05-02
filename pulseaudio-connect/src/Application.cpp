@@ -21,10 +21,10 @@ void quit(const std::string& message) {
     exit(1);
 }
 
-void Application::sinkListCallback(pa_context *c, const pa_sink_input_info* info, int eol, void *userdata) {
+void Application::sourceListCallback(pa_context *c, const pa_source_output_info* info, int eol, void *userdata) {
     if (!info && eol) return;
     auto application = Application::convertToApplication(userdata);
-    application->addSinkInput(info, userdata);
+    application->addSourceOutput(info, userdata);
 }
 
 void Application::clientListCallback(pa_context *c, const pa_client_info* info, int eol, void *userdata) {
@@ -47,7 +47,8 @@ void Application::eventCallback(pa_context *c, pa_subscription_event_type_t t, u
                 return;
             }
             // add sink
-            if (!(op = pa_context_get_sink_input_info(application->mContext, index, Application::sinkListCallback, userdata))) {
+            if (!(op = pa_context_get_source_output_info(application->mContext, index, Application::sourceListCallback,
+                                                      userdata))) {
                 quit("error while fetching sink input info");
             }
             pa_operation_unref(op);
@@ -94,7 +95,7 @@ void Application::contextReadyCallback(pa_context *c, void *userdata) {
                 quit("pa_context_get_client_info_list init error");
             }
             pa_operation_unref(op);
-            if (!(op = pa_context_get_sink_input_info_list(application->mContext, &Application::sinkListCallback, userdata))) {
+            if (!(op = pa_context_get_source_output_info_list(application->mContext, &Application::sourceListCallback, userdata))) {
                 quit("pa_context_get_sink_input_info_list init error");
             }
             pa_operation_unref(op);
@@ -123,7 +124,7 @@ void Application::init() {
     }
 }
 
-void Application::addSinkInput(const pa_sink_input_info* i, void* userdata) {
+void Application::addSourceOutput(const pa_source_output_info* i, void* userdata) {
     // ignore my own sinks
     if (hasEnding(i->name, " read") || hasEnding(i->name, " write")) {
         std::cout << "skipping my own sink " << i->name << std::endl;
@@ -133,7 +134,7 @@ void Application::addSinkInput(const pa_sink_input_info* i, void* userdata) {
         std::cout << "existing stream:" << i->name << " id " << i->index << std::endl;
     } else {
         std::cout << "adding stream:" << i->name << " id " << i->index << std::endl;
-        (*this->sinkInputs)[i->index] = i;
+//        (*this->sinkInputs)[i->index] = i;
         this->createIOStreams(i, userdata);
     }
 }
@@ -149,7 +150,7 @@ void Application::addClientInfo(const pa_client_info* i) {
     if (this->clients->count(i->index)) {
         std::cout << "existing client:" << i->name << std::endl;
     } else {
-        std::cout << "adding client:" << i->name << std::endl;
+        std::cout << "adding client:" << i->name << " " << i->index << std::endl;
         (*this->clients)[i->index] = i;
     }
 }
@@ -184,28 +185,22 @@ void streamStateCallback(pa_stream *stream, void *userdata) {
 void streamReadCallback(pa_stream *stream, size_t length, void *userdata) {
     pa_stream* writeStream = (pa_stream*) userdata;
     // spec shows that buffer size is incremented
-    auto specs = pa_stream_get_sample_spec(stream);
     const void* data;
     pa_stream_peek(stream, &data, &length);
-    if (!data && length) {
-        pa_stream_drop(stream);
-        return;
-    }
     auto samples = (float*) data;
     float phase = 0.0;
     float frequency = 44.0;
     float delta = frequency / (float)length;
     float amplitude = 1.0;
     for (auto i = 0; i < length; i++) {
-        samples[i] = amplitude * (float)std::sin(2 * 3.141592653589793238L * phase);
+        samples[i] = amplitude * (float)std::sin(2.0 * 3.141592653589793238L * phase);
         phase+=delta;
     }
     pa_stream_write(writeStream, data, length * sizeof(float), nullptr, 0, PA_SEEK_RELATIVE);
     pa_stream_drop(writeStream);
-//    pa_stream_drop(stream);
 }
 
-void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* userdata) {
+void Application::createIOStreams(const pa_source_output_info* sinkInput, void* userdata) {
     std::string s(sinkInput->name);
     std::string readStreamName = s + " read";
     std::string writeStreamName = s + " write";
@@ -239,6 +234,7 @@ void Application::createIOStreams(const pa_sink_input_info* sinkInput, void* use
     buffer_attr.fragsize = 2048;
     pa_stream_set_state_callback(readStream, streamStateCallback, userdata);
     pa_stream_set_read_callback(readStream, streamReadCallback, writeStream);
-    pa_stream_connect_record(readStream, NULL, &buffer_attr, PA_STREAM_NOFLAGS);
-    pa_stream_connect_playback(writeStream, nullptr, &outputStreamData->buffer_attr, PA_STREAM_NOFLAGS, nullptr, nullptr);
+//    pa_stream_flags_t flags = (pa_stream_flags_t) (PA_STREAM_START_CORKED | PA_STREAM_INTERPOLATE_TIMING);
+    pa_stream_connect_record(readStream, NULL, nullptr, PA_STREAM_NOFLAGS);
+    pa_stream_connect_playback(writeStream, nullptr, nullptr, PA_STREAM_NOFLAGS, nullptr, nullptr);
 }

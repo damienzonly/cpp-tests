@@ -38,7 +38,7 @@ public:
 
     // callback methods
     static void eventCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata);
-    static void sinkListCallback(pa_context *c, const pa_sink_input_info *i, int eol, void *userdata);
+    static void sourceListCallback(pa_context *c, const pa_source_output_info *info, int eol, void *userdata);
     static void clientListCallback(pa_context *c, const pa_client_info*i, int eol, void *userdata);
     static void contextReadyCallback(pa_context *c, void *userdata);
     static Application* convertToApplication(void* userdata) {
@@ -46,10 +46,10 @@ public:
     }
 
     // add/remove methods
-    void addSinkInput(const pa_sink_input_info* i, void* userdata);
+    void addSourceOutput(const pa_source_output_info* i, void* userdata);
     void removeSinkInput(const uint32_t index);
     void addClientInfo(const pa_client_info* i);
     void removeClientInfo(const uint32_t index);
-    void createIOStreams(const pa_sink_input_info* info, void* userdata);
+    void createIOStreams(const pa_source_output_info* info, void* userdata);
 private:
 };
